@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hrahra.org</title>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles to ensure full height and font application */
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Dark background color for the exclusive feel */
+            background-color: #1a1a1a; /* Deep charcoal */
+            color: #e0e0e0; /* Light text color for contrast */
+            min-height: 100vh; /* Ensure full viewport height */
+            display: flex; /* Use flexbox for centering content */
+            flex-direction: column; /* Stack header, main, footer vertically */
+            justify-content: space-between; /* Push header/footer to ends, center main */
+            align-items: center; /* Center content horizontally */
+            padding: 2rem; /* Add some padding around the edges */
+            box-sizing: border-box; /* Include padding in element's total width and height */
+        }
+
+        /* Ensure main content takes available space and centers its children */
+        .main-content {
+            flex-grow: 1; /* Allow main content to expand */
+            display: flex;
+            flex-direction: column;
+            justify-content: center; /* Center content vertically within main */
+            align-items: center; /* Center content horizontally within main */
+            text-align: center; /* Center text within its container */
+            max-width: 90%; /* Limit width on larger screens */
+            width: 100%; /* Full width on smaller screens */
+        }
+
+        /* Styling for the sign-in button */
+        .sign-in-button {
+            background-color: transparent; /* Transparent background */
+            border: 1px solid #666666; /* Subtle border */
+            color: #e0e0e0; /* Light text color */
+            padding: 0.75rem 2rem;
+            border-radius: 0.5rem; /* Slightly rounded corners */
+            font-weight: 500;
+            transition: all 0.3s ease; /* Smooth transition for hover effects */
+            cursor: pointer;
+            text-decoration: none; /* Remove underline for link */
+            display: inline-block; /* Allow padding and margin */
+        }
+
+        .sign-in-button:hover {
+            background-color: #333333; /* Slightly darker on hover */
+            border-color: #999999; /* Lighter border on hover */
+        }
+
+        /* Responsive font sizes */
+        @media (max-width: 768px) {
+            .headline {
+                font-size: 1.75rem; /* Smaller headline on mobile */
+                line-height: 2.25rem;
+            }
+            .sub-headline {
+                font-size: 1rem; /* Smaller sub-headline on mobile */
+                line-height: 1.5rem;
+            }
+            .footer-text {
+                font-size: 0.75rem; /* Smaller footer text on mobile */
+            }
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <!-- Header: Domain Name -->
+    <header class="w-full text-center py-4">
+        <h1 class="text-3xl sm:text-4xl font-semibold text-gray-200">Hrahra.org</h1>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main-content flex-grow flex flex-col justify-center items-center px-4">
+        <div class="max-w-3xl mx-auto">
+            <!-- Main Headline -->
+            <h2 class="headline text-2xl sm:text-3xl md:text-4xl font-medium mb-4 text-gray-100 leading-tight">
+                You’re welcome to attempt to sign in, but…
+            </h2>
+            <!-- Supporting Text -->
+            <p class="sub-headline text-lg sm:text-xl md:text-2xl text-gray-400 mb-8 leading-relaxed">
+                …let’s not act like it’s a surprise if you’re not on the list. Geh’head…
+            </p>
+            <!-- Call to Action -->
+            <a href="#" class="sign-in-button">
+                Sign In
+            </a>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full text-center py-6 text-gray-500 text-sm footer-text">
+        <p class="mb-1">&copy; 2025 Hrahra.org. All rights reserved. Even the ones you didn't know existed.</p>
+        <p>We appreciate your interest. Truly.</p>
+    </footer>
+</body>
+</html>
