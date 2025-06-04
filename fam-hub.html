@@ -1,0 +1,398 @@
+import React, { useState, useEffect } from 'react';
+import { initializeApp } from 'firebase/app';
+import {
+  getAuth,
+  signInAnonymously,
+  signInWithCustomToken,
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut
+} from 'firebase/auth';
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  getDoc,
+  collection,
+  onSnapshot,
+  query,
+  addDoc,
+  deleteDoc,
+  updateDoc
+} from 'firebase/firestore';
+
+// Global variables provided by the Canvas environment
+// These are crucial for Firebase to connect correctly
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+// Initialize Firebase outside the component to avoid re-initialization
+let app;
+let auth;
+let db;
+
+try {
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+} catch (error) {
+  console.error("Error initializing Firebase:", error);
+  // Handle initialization errors gracefully, e.g., display a message to the user
+}
+
+// Main App Component
+function App() {
+  const [user, setUser] = useState(null); // Firebase user object
+  const [userId, setUserId] = useState(null); // Our internal userId (Firebase UID or anonymous ID)
+  const [loading, setLoading] = useState(true); // Loading state for initial auth check
+  const [authMode, setAuthMode] = useState('login'); // 'login' or 'signup'
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [message, setMessage] = useState(''); // For auth messages
+  const [currentPage, setCurrentPage] = useState('common'); // 'common' or 'mySpace'
+  const [commonNotes, setCommonNotes] = useState([]); // State for common area notes
+  const [newCommonNote, setNewCommonNote] = useState(''); // Input for new common note
+
+  // --- Firebase Authentication Effect ---
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        if (initialAuthToken) {
+          // Use the provided custom token for authentication
+          await signInWithCustomToken(auth, initialAuthToken);
+        } else {
+          // Fallback to anonymous sign-in if no custom token is provided
+          await signInAnonymously(auth);
+        }
+      } catch (error) {
+        console.error("Initial authentication failed:", error);
+        setMessage(`Authentication error: ${error.message}`);
+      } finally {
+        setLoading(false); // Authentication attempt finished
+      }
+    };
+
+    // Listen for auth state changes
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+        // Use Firebase UID if logged in, otherwise generate a random one for anonymous
+        setUserId(currentUser.uid || crypto.randomUUID());
+      } else {
+        setUser(null);
+        setUserId(null); // Clear userId if logged out
+      }
+      setLoading(false); // Ensure loading is false after initial check
+    });
+
+    initializeAuth(); // Call initial auth attempt
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
+  }, []); // Empty dependency array ensures this runs only once on mount
+
+  // --- Firestore Data Listener Effect (Common Notes) ---
+  useEffect(() => {
+    if (!db || !userId) return; // Don't run if Firebase not initialized or no user
+
+    // Define the path for public data: /artifacts/{appId}/public/data/commonNotes
+    const commonNotesCollectionRef = collection(db, `artifacts/${appId}/public/data/commonNotes`);
+    const q = query(commonNotesCollectionRef);
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const notes = [];
+      snapshot.forEach((doc) => {
+        notes.push({ id: doc.id, ...doc.data() });
+      });
+      setCommonNotes(notes);
+    }, (error) => {
+      console.error("Error fetching common notes:", error);
+      setMessage(`Error loading notes: ${error.message}`);
+    });
+
+    // Clean up the listener when the component unmounts or user changes
+    return () => unsubscribe();
+  }, [db, userId, appId]); // Re-run if db, userId, or appId changes
+
+  // --- Authentication Handlers ---
+  const handleAuth = async (e) => {
+    e.preventDefault();
+    setMessage(''); // Clear previous messages
+
+    if (!email || !password) {
+      setMessage('Please enter both email and password.');
+      return;
+    }
+
+    try {
+      if (authMode === 'signup') {
+        await createUserWithEmailAndPassword(auth, email, password);
+        setMessage('Signed up successfully! You are now logged in.');
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+        setMessage('Logged in successfully!');
+      }
+    } catch (error) {
+      console.error("Authentication error:", error);
+      setMessage(`Authentication failed: ${error.message}`);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setMessage('Logged out successfully.');
+      setEmail('');
+      setPassword('');
+      setAuthMode('login'); // Reset to login view
+    } catch (error) {
+      console.error("Logout error:", error);
+      setMessage(`Logout failed: ${error.message}`);
+    }
+  };
+
+  // --- Common Notes Handlers ---
+  const handleAddCommonNote = async () => {
+    if (!newCommonNote.trim() || !userId) {
+      setMessage('Note cannot be empty or user not logged in.');
+      return;
+    }
+    try {
+      const commonNotesCollectionRef = collection(db, `artifacts/${appId}/public/data/commonNotes`);
+      await addDoc(commonNotesCollectionRef, {
+        text: newCommonNote,
+        authorId: userId,
+        authorEmail: user?.email || 'Anonymous',
+        createdAt: new Date(),
+      });
+      setNewCommonNote('');
+      setMessage('Note added!');
+    } catch (error) {
+      console.error("Error adding common note:", error);
+      setMessage(`Failed to add note: ${error.message}`);
+    }
+  };
+
+  const handleDeleteCommonNote = async (noteId) => {
+    try {
+      const noteDocRef = doc(db, `artifacts/${appId}/public/data/commonNotes`, noteId);
+      await deleteDoc(noteDocRef);
+      setMessage('Note deleted!');
+    } catch (error) {
+      console.error("Error deleting common note:", error);
+      setMessage(`Failed to delete note: ${error.message}`);
+    }
+  };
+
+  // --- Loading State UI ---
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900 text-gray-200">
+        <div className="text-xl font-semibold">Loading Family Hub...</div>
+      </div>
+    );
+  }
+
+  // --- Authentication UI (Not logged in) ---
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900 text-gray-200 p-4">
+        <div className="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md border border-gray-700">
+          <h2 className="text-3xl font-bold text-center mb-6 text-gray-100">
+            {authMode === 'login' ? 'Sign In to Hrahra.org' : 'Sign Up for Hrahra.org'}
+          </h2>
+          <form onSubmit={handleAuth} className="space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-400 mb-1">Email</label>
+              <input
+                type="email"
+                id="email"
+                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-100 focus:ring-blue-500 focus:border-blue-500"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your.email@example.com"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-400 mb-1">Password</label>
+              <input
+                type="password"
+                id="password"
+                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-100 focus:ring-blue-500 focus:border-blue-500"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition duration-300 ease-in-out"
+            >
+              {authMode === 'login' ? 'Sign In' : 'Sign Up'}
+            </button>
+          </form>
+          {message && (
+            <p className="mt-4 text-center text-sm text-red-400">{message}</p>
+          )}
+          <p className="mt-6 text-center text-gray-400 text-sm">
+            {authMode === 'login' ? (
+              <>
+                Don't have an account?{' '}
+                <button
+                  onClick={() => setAuthMode('signup')}
+                  className="text-blue-500 hover:text-blue-400 font-medium"
+                >
+                  Sign Up
+                </button>
+              </>
+            ) : (
+              <>
+                Already have an account?{' '}
+                <button
+                  onClick={() => setAuthMode('login')}
+                  className="text-blue-500 hover:text-blue-400 font-medium"
+                >
+                  Sign In
+                </button>
+              </>
+            )}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // --- Main Application UI (Logged in) ---
+  return (
+    <div className="min-h-screen bg-gray-900 text-gray-200 flex flex-col">
+      {/* Header */}
+      <header className="bg-gray-800 shadow-md p-4 flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-gray-100">Hrahra.org Family Hub</h1>
+        <div className="flex items-center space-x-4">
+          <span className="text-sm text-gray-400">Welcome, {user.email || 'Anonymous'}</span>
+          <span className="text-xs text-gray-500">User ID: {userId}</span> {/* Display userId */}
+          <button
+            onClick={handleLogout}
+            className="bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-1 px-3 rounded-md transition duration-300"
+          >
+            Logout
+          </button>
+        </div>
+      </header>
+
+      {/* Navigation */}
+      <nav className="bg-gray-700 p-3 shadow-inner">
+        <ul className="flex justify-center space-x-6">
+          <li>
+            <button
+              onClick={() => setCurrentPage('common')}
+              className={`px-4 py-2 rounded-md font-medium transition duration-300 ${
+                currentPage === 'common' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              Common Area
+            </button>
+          </li>
+          <li>
+            <button
+              onClick={() => setCurrentPage('mySpace')}
+              className={`px-4 py-2 rounded-md font-medium transition duration-300 ${
+                currentPage === 'mySpace' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              My Space
+            </button>
+          </li>
+        </ul>
+      </nav>
+
+      {/* Main Content Area */}
+      <main className="flex-grow p-6">
+        {message && (
+          <div className="bg-blue-900 text-blue-200 p-3 rounded-md mb-4 text-center">
+            {message}
+          </div>
+        )}
+
+        {currentPage === 'common' && (
+          <div className="bg-gray-800 p-6 rounded-lg shadow-lg max-w-4xl mx-auto">
+            <h2 className="text-3xl font-bold mb-6 text-gray-100">Common Family Area</h2>
+            <p className="text-gray-400 mb-4">
+              This is where shared calendars, family photos, and general announcements will go.
+              For now, here's a shared note board:
+            </p>
+
+            {/* Shared Notes Section */}
+            <div className="mb-6">
+              <h3 className="text-xl font-semibold mb-3 text-gray-200">Shared Notes</h3>
+              <div className="space-y-3 mb-4 max-h-60 overflow-y-auto pr-2">
+                {commonNotes.length === 0 ? (
+                  <p className="text-gray-500">No notes yet. Be the first to add one!</p>
+                ) : (
+                  commonNotes.map((note) => (
+                    <div key={note.id} className="bg-gray-700 p-3 rounded-md flex justify-between items-center">
+                      <div>
+                        <p className="text-gray-100">{note.text}</p>
+                        <p className="text-xs text-gray-400">
+                          by {note.authorEmail} on {new Date(note.createdAt.toDate()).toLocaleDateString()}
+                        </p>
+                      </div>
+                      {userId === note.authorId && ( // Only allow author to delete
+                        <button
+                          onClick={() => handleDeleteCommonNote(note.id)}
+                          className="text-red-400 hover:text-red-300 text-sm"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  className="flex-grow px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-100 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Add a new common note..."
+                  value={newCommonNote}
+                  onChange={(e) => setNewCommonNote(e.target.value)}
+                />
+                <button
+                  onClick={handleAddCommonNote}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition duration-300"
+                >
+                  Add Note
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {currentPage === 'mySpace' && (
+          <div className="bg-gray-800 p-6 rounded-lg shadow-lg max-w-4xl mx-auto">
+            <h2 className="text-3xl font-bold mb-6 text-gray-100">My Personal Space</h2>
+            <p className="text-gray-400">
+              This is your private area, {user.email || 'Anonymous'}! Here you can store your
+              personal photos, calendar events, notes, and more.
+            </p>
+            <div className="mt-4 p-4 bg-gray-700 rounded-md text-gray-300">
+              <p>Future features here could include:</p>
+              <ul className="list-disc list-inside mt-2">
+                <li>Personal Calendar</li>
+                <li>Private Photo Gallery</li>
+                <li>Personal To-Do Lists</li>
+                <li>Private Journal/Notes</li>
+              </ul>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
+export default App;
