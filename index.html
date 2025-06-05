@@ -1,12 +1,71 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Company Downloads</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Document Center | Acme Corp</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f4f6f8;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background-color: #003366;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+    main {
+      max-width: 600px;
+      margin: 40px auto;
+      background-color: white;
+      padding: 30px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      border-radius: 8px;
+    }
+    h1 {
+      font-size: 22px;
+      margin-bottom: 20px;
+    }
+    p {
+      margin: 10px 0 30px;
+      color: #555;
+    }
+    a.download-link {
+      display: inline-block;
+      padding: 12px 20px;
+      background-color: #004aad;
+      color: white;
+      text-decoration: none;
+      font-weight: 600;
+      border-radius: 5px;
+      transition: background-color 0.2s ease-in-out;
+    }
+    a.download-link:hover {
+      background-color: #003080;
+    }
+    footer {
+      text-align: center;
+      font-size: 12px;
+      color: #888;
+      padding: 20px;
+    }
+  </style>
 </head>
 <body>
-    <h1>Company Downloads</h1>
-    <a href="{config['url_base']}/{files[0].name}">Download Purchase List</a>
-    <p>Click to download the purchase list PDF.</p>
+  <header>
+    <h2>ACME Document Center</h2>
+  </header>
+  <main>
+    <h1>Purchase List - Q2 2025</h1>
+    <p>This document contains vendor quotes and purchasing breakdowns for internal distribution only.</p>
+    <a class="download-link" href="{config['url_base']}/{files[0].name}">Download PDF</a>
+  </main>
+  <footer>
+    &copy; 2025 ACME Corp. All rights reserved.
+  </footer>
 </body>
 </html>
